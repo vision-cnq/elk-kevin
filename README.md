@@ -339,18 +339,31 @@ http://slave1:5601/
 ```
 ![img](https://note.youdao.com/yws/api/personal/file/C531F9787B4A42A19C01560527C4957B?method=download&shareKey=ac2a2c0ac0687d0d278b1dcb04437a51)
 
-### 7.安装logstash
 
-7.1 将logstash传输到linux下的/home/grid/software目录
+### 7.安装中文分词器
 
-7.2 解压缩logstash
+7.1 下载中文分词器(elasticsearch-analysis-ik-master)
+下载地址：[下载地址](https://github.com/medcl/elasticsearch-analysis-ik)
+![img](https://note.youdao.com/yws/api/personal/file/4D4819C6EF56401FA166AB80388CBFB7?method=download&shareKey=b67624628daa90e2f65a730acb62fbe8)
+
+7.2 将下载好的ik传输到linux中
+
+7.3 将解压后的ik文件夹移动到es的plugins目录下
+![img](https://note.youdao.com/yws/api/personal/file/6508BBB4639A48E58CD38304D769837A?method=download&shareKey=6a9d27123ed014815acb77a0151e9565)
+
+
+### 8.安装logstash
+
+8.1 将logstash传输到linux下的/home/grid/software目录
+
+8.2 解压缩logstash
 ```
 tar -zxvf logstash-6.8.7.tar.gz  -C /home/grid/
 ```
 ![img](https://note.youdao.com/yws/api/personal/file/D706DEB2A7A7416C9BF3144E648D5332?method=download&shareKey=f91a43690265dac21baf0806bd7bb256)
 ![img](https://note.youdao.com/yws/api/personal/file/86E04BEB595740EF913DC9475F676B84?method=download&shareKey=25efd3823083a33247c645dc0c9ca96e)
 
-7.3 启动logstash小案例
+8.3 启动logstash小案例
 ```
 ./logstash -e 'input { stdin { } } output { stdout {} }'
 ```
@@ -365,26 +378,26 @@ tar -zxvf logstash-6.8.7.tar.gz  -C /home/grid/
 ./logstash -f ../demo/xxx.conf
 ```
 
-### 8.Linux启动ELK步骤
-8.1 启动elasticsearch
+### 9.Linux启动ELK步骤
+9.1 启动elasticsearch
     elasticsearch目录下（master）
 ```
 ./bin/elasticsearch
 ```
 
-8.2 启动elasticsearch-head-master
+9.2 启动elasticsearch-head-master
     elasticsearch-head-master目录下
 ```
 grunt server
 ```
 
-8.3 启动kibana  
+9.3 启动kibana  
     kibana目录下
 ```
 ./bin/kibana
 ```    
 
-8.4 启动logstash（选择性是否启动）
+9.4 启动logstash（选择性是否启动）
     logstash目录下
 ```
 ./bin/logstash -e 'input {stdin {} } output{ stdout {}}'
