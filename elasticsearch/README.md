@@ -604,6 +604,8 @@ ES自动创建了index，type，以及type对应的mapping。
 
 创建索引时，可以预先定义字段的类型以及相关属性，这样就能够把日期字段处理成日期，数字字段处理成数字，字符串字段处理成字符串值。
 
+> 检索时用到的分析策略需要与建立索引时的分析策略相同，否则将导致数据不准确。
+
 #### 2.10.1 支持的数据类型
 
 1.核心数据类型  
@@ -678,7 +680,7 @@ ES自动创建了index，type，以及type对应的mapping。
 > 影响距离查询或近似查询，可以设置在多值字段的数据上火分词字段上，查询时可指定slop间隔，默认值是100
 
 "search_analyzer":"ik"  
-> 设置搜索时的分词器，默认跟ananlyzer是一致的，比如index时用standard+ngram，搜索时用standard用来完成自动提示功能
+> 设置搜索时的分词器，默认跟analyzer是一致的，比如index时用standard+ngram，搜索时用standard用来完成自动提示功能
 
 "similarity":"BM25" 
 > 默认是TF/IDF算法，指定一个字段评分策略，仅仅对字符串型和分词类型有效
@@ -697,10 +699,74 @@ dynamic设置可以控制该行为，能接受以下选项：
 
 dynamic设置可以使用在根对象上或者object类型的任意字段上。
 
+#### 2.10.4 创建mapping
 
+创建mapping时，可以指定每个field是否需要mapping，默认为"index":"true"，mapping一旦创建，将不允许修改。
+不能更新mapping，只能在创建index的时手动配置mapping，或者在添加新字段的时候新增mapping。
+
+```
+// 对demo2索引的user类型创建mapping
+PUT /demo2
+{
+  "mappings":{
+    "users":{
+      "properties":{
+        "name":{
+          "type":"text",
+          "index":true
+        },  
+        "age":{
+          "type":"integer"
+        },
+        "sex":{
+          "type":"keyword"
+        },
+        "createtime":{
+          "type":"date",
+          "format":"yyyy-MM-dd HH:mm:ss"
+        },
+        "mail":{
+          "type":"text",
+          "index":false
+        }
+      } 
+    }
+  }
+}
+// mappings：映射，properties：类型中的属性，"index":true设置为让其分词，如果是false则不分词
+// "type":"text", "type":"integer"，"type":"keyword"这些是设置映射的类型，"type":"date",并且指定时间格式
+
+```
+
+新增字段并且设置mapping
+```
+PUT /demo2/_mapping/users
+{
+  "properties":{
+    "new_field":{
+      "type":"text",
+      "index":false
+    }
+  } 
+}
+
+```
+
+#### 2.10.5 查看mapping
+
+```
+GET /demo2/_mapping
+```
 
 
 ## 3、 Elasticsearch DSL常用语法
+
+
+
+
+
+
+
 
 
 
