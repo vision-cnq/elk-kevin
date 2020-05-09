@@ -528,7 +528,7 @@ POST /demo1/user/_bulk
 {"delete":{"_index":"demo1","_type":"user","_id":3}}
 {"index":{"_index":"demo1","_type":"user"}}
 {"name":"siri","age":7,"sex":"女"}
-// 没有指定_id时，ES会自动生成一个随机id
+# 没有指定_id时，ES会自动生成一个随机id
 ```
 
 ### 2.9 ElasticSearch的版本控制
@@ -548,46 +548,46 @@ ElasticSearch的版本号的取值范围为1到2^63-1。
 
 版本控制案例：
 ```
-// 创建一个文档
+# 创建一个文档
 PUT /demo/user/1
 {
   "name":"kevin",
   "sex":"男",
   "hobby":["java"]
 }
-// 此时_version=1
+# 此时_version=1
 ```
 内部版本控制（案例）：
 ```
-// 更新版本并指定为version=1
+# 更新版本并指定为version=1
 PUT /demo/user/1?version=1
 {
   "name":"kevin",
   "age":24,
   "sex":"男"
 }
-// 更新成功，此时_version=2
+# 更新成功，此时_version=2
 
-// 再次更新版本并还是指定version=1
+# 再次更新版本并还是指定version=1
 PUT /demo/user/1?version=1
 {
   "name":"kevin",
   "age":24,
   "sex":"男"
 }
-// 更新失败，因为版本不一致，抛出异常：reason": "[user][1]: version conflict, current version [2] is different than the one provided [1]"
+# 更新失败，因为版本不一致，抛出异常：reason": "[user][1]: version conflict, current version [2] is different than the one provided [1]"
 
 ```
 外部版本控制（案例）：
 ```
-// 更新时，判断_version是否比指定的数值小，如果是则保存外部版本号到version中
+# 更新时，判断_version是否比指定的数值小，如果是则保存外部版本号到version中
 PUT /demo/user/1?version=4&version_type=external
 {
   "name":"kevin",
   "age":24,
   "sex":"男"
 }
-// 更新前，version=2，指定的数值为4，判定通过，更新数据成功，此时version=4
+# 更新前，version=2，指定的数值为4，判定通过，更新数据成功，此时version=4
 ```
   
 #### 2.9.3 ES保证内、外部版本控制数据一致
@@ -705,7 +705,7 @@ dynamic设置可以使用在根对象上或者object类型的任意字段上。
 不能更新mapping，只能在创建index的时手动配置mapping，或者在添加新字段的时候新增mapping。
 
 ```
-// 对demo2索引的user类型创建mapping
+# 对demo2索引的user类型创建mapping
 PUT /demo2
 {
   "mappings":{
@@ -733,8 +733,8 @@ PUT /demo2
     }
   }
 }
-// mappings：映射，properties：类型中的属性，"index":true设置为让其分词，如果是false则不分词
-// "type":"text", "type":"integer"，"type":"keyword"这些是设置映射的类型，"type":"date",并且指定时间格式
+# mappings：映射，properties：类型中的属性，"index":true设置为让其分词，如果是false则不分词
+# "type":"text", "type":"integer"，"type":"keyword"这些是设置映射的类型，"type":"date",并且指定时间格式
 
 ```
 
@@ -749,7 +749,6 @@ PUT /demo2/_mapping/users
     }
   } 
 }
-
 ```
 
 #### 2.10.5 查看mapping
@@ -758,8 +757,597 @@ PUT /demo2/_mapping/users
 GET /demo2/_mapping
 ```
 
-
 ## 3、 Elasticsearch DSL常用语法
+
+数据准备
+```
+# 创建索引，设置分片副本，配置映射
+PUT /demo
+{
+  "settings":{
+    "number_of_replicas": 1, 
+    "number_of_shards": 3
+  },
+  "mappings":{
+    "user":{
+      "properties":{
+        "name":{"type":"text"},
+        "age":{"type":"integer"},
+        "sex":{"type":"text"},
+        "remark":{"type":"text"},
+        "create_time":{"type":"date","format":"yyyy-MM-dd||yyyy/MM/dd||yyyy-MM-dd HH:mm:ss||epoch_millis"}
+      }
+    }
+  }
+}
+
+# 查看 mapping
+GET /demo/user/_mapping
+
+# 批量新增数据
+POST /demo/user/_bulk
+{"index":{"_index":"demo","_type":"user","_id":1}}
+{"name":"kevin","age":24,"sex":"男","remark":"我是kevin","create_time":"2020-05-04"}
+{"index":{"_index":"demo","_type":"user","_id":2}}
+{"name":"cao","age":23,"sex":"男","remark":"我是cao","create_time":"2020-05-03"}
+{"index":{"_index":"demo","_type":"user","_id":3}}
+{"name":"mr.cao","age":22,"sex":"男","remark":"我是mr.cao","create_time":"2020-05-02"}
+{"index":{"_index":"demo","_type":"user","_id":4}}
+{"name":"kevin","age":21,"sex":"男","remark":"我是kevin","create_time":"2020-05-02"}
+{"index":{"_index":"demo","_type":"user","_id":5}}
+{"name":"coco","age":21,"sex":"女","remark":"我是coco","create_time":"2020-05-04"}
+{"index":{"_index":"demo","_type":"user","_id":6}}
+{"name":"co","age":20,"sex":"女","remark":"我是co","create_time":"2020-05-03"}
+{"index":{"_index":"demo","_type":"user","_id":7}}
+{"name":"coco","age":19,"sex":"女","remark":"我是coco","create_time":"2020-05-02"}
+
+# 查询测试
+# 查询name为kevin
+GET /demo/user/_search?q=name:kevin
+
+# 查询name为kevin且以age倒序
+GET /demo/user/_search?q=name:kevin&sort=age:desc
+```
+
+### 3.1 DSL语句校验查询是否正确
+```
+# 查询前先校验语句是否正确
+GET /demo/user/_validate/query?explain
+{
+  "query":{
+    "match":{
+      "name":"kevin"
+    }
+  }
+}
+```
+
+### 3.2 DSL基本用法
+
+模糊查询时使用match，精准查询时使用term。
+
+term query：直接对关键词准确查找，该查询只适合keyword、numeric、date。
+
+    term：查询某个字段中含有某个关键词的文档。
+    terms：查询某个字段中含有多个关键词的文档。
+    
+match query：对所查找的关键词进行分词，在根据分词匹配查找。
+
+    match_all：查询所有文档。
+    multi_match：指定多个字段。
+    match_phrase：短语匹配查询。
+
+ES检索引擎会先分析查询字符串，从分析后的文本中构建短语查询，表示必须匹配短语中所有的分词，并保证各个分词的相对位置不变。
+    
+from：从第几条数据开始查询。
+    
+size：需要查询的个数。
+
+sort：实现排序，desc降序，asc升序。
+
+range：实现范围查询。（参数：from，to，include_lower，include_upper，boost）
+
+    include_lower：是否包含范围的左边界，默认true。
+    include_upper：是否包含范围的右边界，默认true。
+
+wildcard：允许使用通配符*和?进行查询
+
+    *：表示0或者多个字符
+    ?：表示任意一个字符  
+
+fuzzy：实现模糊查询
+
+    value：查询的关键字
+    boost：查询的权值，默认值1.0
+    min_similarity：设置匹配的最小相似度，默认值0.5，对于字符串，取值0-1（包括0和1），对于数值，取值可能大于1，对于日期，取值为1d,1m等，1d为1天。
+    prefix_length：指明区分词项的共同前缀长度，默认0.
+    max_expansions：查询中的词项可以扩展的数目，默认可以无限大。
+
+filter是不计算相关性的，同时可以cache，所以filter效率高于query。
+
+范围过滤：
+
+    gte：>=（大于等于）
+    gt：>（大于）
+    lte：<=（小于等于）
+    lt：<（小于）
+    
+bool过滤
+
+    must：必须满足的条件（and）
+    should：可以满足也可以不满足的条件（or）
+    must_not：不需要满足的条件（not）
+
+### 3.3 term与terms查询
+
+term query：直接对关键词准确查找，该查询只适合keyword、numeric、date。
+
+    term：查询某个字段中含有某个关键词的文档。
+    terms：查询某个字段中含有多个关键词的文档。
+
+#### 3.3.1 指定单个关键词查询
+term查询
+```
+# term指定查询name为kevin的数据
+GET /demo/user/_search
+{
+  "query":{
+    "term":{"name":"kevin"}
+  }
+}
+```
+
+#### 3.3.2 指定多个关键词查询
+terms查询
+```
+# terms指定查询name为kevin与cao的数据
+GET /demo/user/_search
+{
+  "query":{
+    "terms":{
+      "name":["kevin","cao"]
+    }
+  }
+}
+```
+
+#### 3.3.3 分页查询
+
+from：从第几条数据开始查询，size：需要查询几条数据
+
+```
+# 分页查询
+GET /demo/user/_search
+{
+  "query":{
+    "terms":{
+      "name":["kevin","coco"]
+    }
+  },
+  "from":0,
+  "size":3
+}
+```
+
+#### 3.3.4 查询时返回版本号
+```
+# 查询时返回版本号，默认version为false
+GET /demo/user/_search
+{
+  "version":"true",
+  "query": {
+    "terms": {
+      "name": ["kevin"]
+    }
+  }
+}
+```
+
+### 3.4 match查询
+
+match query：对所查找的关键词进行分词，在根据分词匹配查找。
+
+    match_all：查询所有文档。
+    multi_match：指定多个字段。
+    match_phrase：短语匹配查询。
+
+#### 3.4.1 查询全部（match_all）
+
+match_all：查询所有文档。
+
+```
+# 查询所有用户
+GET /demo/user/_search
+{
+  "query":{
+    "match_all":{}
+  }
+}
+```
+
+#### 3.4.2 指定单个字段查询
+```
+# 指定查询，name为kevin且以age倒序
+GET /demo/user/_search
+{
+  "query":{
+    "match":{
+      "name":"kevin"
+    }
+  },
+  "sort":[
+    {
+      "age":"desc"
+    }
+  ]
+}
+```
+
+#### 3.4.3 指定多个字段查询（multi_match）
+
+multi_match：指定多个字段。
+
+```
+# 在多个字段中查询包含谁，kevin，coco的数据
+GET /demo/user/_search
+{
+  "query":{
+    "multi_match":{
+      "query":"谁 kevin coco",
+      "fields":["name","remark"]
+    }
+  }
+}
+# "query":"谁 kevin coco",查询的语句，fields查询的字段
+```
+
+#### 3.4.4 短语完全匹配查询（match_phrase）
+
+match_phrase：短语完全匹配查询。  
+
+ES检索引擎会先分析查询字符串，从分析后的文本中构建短语查询，表示必须匹配短语中所有的分词，并保证各个分词的相对位置不变。
+
+```
+# 精准匹配所有包含（完全匹配），必须包含
+GET /demo/user/_search
+{
+  "query":{
+    "match_phrase":{
+      "remark":{
+        "query":"我",
+        "slop":1
+      }
+    }
+  }
+}
+# "slop"是可调节因子，"slop":1则表示往后移一个单词也能匹配
+```
+
+#### 3.4.5 前缀匹配查询
+
+match_phrase_prefix：前缀匹配查询
+
+```
+# 匹配name的开头是co
+GET /demo/user/_search
+{
+  "query":{
+    "match_phrase_prefix":{
+      "name":{
+        "query":"co"
+      }
+    }
+  }
+}
+```
+
+#### 3.4.6 分页查询
+
+from：从第几条数据开始查询，size：需要查询几条数据
+
+```
+# 分页查询
+GET /demo/user/_search
+{
+  "query":{
+    "match":{
+      "name":"kevin"
+    }
+  },
+  "from":0,
+  "size":2
+}
+```
+
+#### 3.4.7 查询返回指定字段
+```
+# 查询name为kevin的name，age，create_time字段
+GET /demo/user/_search
+{
+  "query":{
+    "match":{
+        "name":"kevin"
+    }
+  },
+  "_source":[
+    "name",
+    "age",
+    "create_time"
+  ]
+}
+```
+
+#### 3.4.8 控制加载的字段（选择性展示的字段）
+
+includes：包含的字段展示  
+excludes：不包含的字段展示
+```
+# 包含的字段展示
+GET /demo/user/_search
+{
+  "query":{
+    "match_all":{}
+  },
+  "_source":{
+    "includes":["name","sex"]
+  }
+}
+
+# 不包含的字段展示
+GET /demo/user/_search
+{
+  "query":{
+    "match_all":{}
+  },
+  "_source":{
+    "excludes":["age","create_time"]
+  }
+}
+```
+
+#### 3.4.9 使用通配符*
+
+```
+# 展示字段名包含m的字段
+GET /demo/user/_search
+{
+  "_source":{
+    "includes":"*m*"
+  },
+  "query":{
+    "match_all":{}
+  }
+}
+
+# 展示字段名包含m的字段，并不展示name与最后为e的字段
+GET /demo/user/_search
+{
+  "_source":{
+    "includes":"*m*",
+    "excludes":["name","*e"]
+  },
+  "query":{
+    "match_all":{}
+  }
+}
+```
+
+#### 3.4.10 排序
+
+sort：实现排序，desc降序，asc升序。
+
+```
+# 根据age做升序排序
+GET /demo/user/_search
+{
+  "query":{
+    "match_all":{}
+  },
+  "sort":{
+    "age":{
+      "order":"asc"
+    }
+  }
+}
+```
+
+#### 3.4.11 查询范围性数据
+
+range：实现范围查询。（参数：from，to，include_lower，include_upper，boost）
+
+    include_lower：是否包含范围的左边界，默认true。
+    include_upper：是否包含范围的右边界，默认true。
+    
+```
+# 查询create_time为2020-05-01到05的数据
+GET /demo/user/_search
+{
+  "query":{
+    "range":{
+      "create_time":{
+        "from":"2020-05-01",
+        "to":"2020-05-05"
+      }
+    }
+  }
+}
+
+# 查询age为19到21的数据，不包含21
+GET /demo/user/_search
+{
+  "query":{
+    "range":{
+      "age":{
+        "from":19,
+        "to":21,
+        "include_lower":true,
+        "include_upper":false
+      }
+    }
+  }
+}
+```    
+
+#### 3.4.12 wildcard模糊查询
+
+wildcard：允许使用通配符*和?进行查询
+
+    *：表示0或者多个字符
+    ?：表示任意一个字符  
+    
+```
+# 模糊匹配name中最右面为co的数据
+GET /demo/user/_search
+{
+  "query":{
+    "wildcard":{
+      "name":"*co"
+    }
+  }
+}
+
+# 模糊匹配name中c与o之间还有一个值的数据
+GET /demo/user/_search
+{
+  "query":{
+    "wildcard":{
+      "name":"c?o"
+    }
+  }
+}
+```
+
+#### 3.4.13 fuzzy实现模糊查询
+
+fuzzy：实现模糊查询
+
+    value：查询的关键字
+    boost：查询的权值，默认值1.0
+    min_similarity：设置匹配的最小相似度，默认值0.5，对于字符串，取值0-1（包括0和1），对于数值，取值可能大于1，对于日期，取值为1d,1m等，1d为1天。
+    prefix_length：指明区分词项的共同前缀长度，默认0.
+    max_expansions：查询中的词项可以扩展的数目，默认可以无限大。
+    
+```
+# 模糊匹配分词后remark有kevin的数据
+GET /demo/user/_search
+{
+  "query":{
+    "fuzzy":{
+      "remark":{
+        "value":"kevin"
+      }
+    }
+  }
+}
+# 比如remark的数据为我是keivn，会分词为dos[0]:我[0] 是[1] kevin[2]
+``` 
+
+#### 3.4.13 高亮搜索结果
+
+```
+# 高亮显示搜索结果
+GET /demo/user/_search
+{
+  "query":{
+    "match":{
+      "name":"coco"
+    }
+  },
+  "highlight":{
+    "fields": {
+      "name":{}
+    }
+  }
+}
+```
+    
+### 3.5 Filter查询
+
+filter是不计算相关性的，同时可以cache，所以filter效率高于query。
+
+<b>搜索结果</b>：  
+* filter：只查询出搜索条件的数据，不计算相关度分数
+* query：查询出搜索条件的数据，并计算相关度分数，按照分数进行倒序排序
+
+<b>性能</b>：  
+* filter：不计算相关度分数，也不需要排序，内置的自动缓存最常使用查询结果的数据（缓存bitset不是缓存文档内容）
+* query：要计算相关度分数，按照分数进行倒序排序，没有缓存结果的功能
+
+当query与filter同时使用时filter会先执行，并且同时兼顾两者的特性
+
+#### 3.5.1 简单的过滤查询
+
+```
+# 过滤只取指定的结果
+GET /demo/user/_search
+{
+  "post_filter":{
+    "term":{
+      "age":21
+    }
+  }
+}
+
+# 过滤只取指定的多个结果
+GET /demo/user/_search
+{
+  "post_filter":{
+    "terms":{
+      "age":[21,23]
+    }
+  }
+}
+```
+
+新增一个用户id字段设置映射不分词
+```
+PUT /demo/_mapping/user
+{
+  "properties":{
+    "user_id":{
+      "type":"text",
+      "index":"false"
+    }
+  }
+}
+```
+
+#### 3.5.2 bool过滤查询
+
+bool过滤
+
+    must：必须满足的条件（and）
+    should：可以满足也可以不满足的条件（or）
+    must_not：不需要满足的条件（not）
+格式
+```
+    {
+        "bool":{
+            "must":[],
+            "should":[],
+            "must_not":[]
+        }
+    }
+```
+
+
+
+
+
+
+
+范围过滤：
+
+    gte：>=（大于等于）
+    gt：>（大于）
+    lte：<=（小于等于）
+    lt：<（小于）
+    
+
+
+
+
+
 
 
 
