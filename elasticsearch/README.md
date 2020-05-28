@@ -1329,12 +1329,49 @@ bool过滤
         }
     }
 ```
+普通bool案例
+```
+#获取name=keivn or age = 20 且 age <> 24
+GET /demo/user/_search
+{
+  "post_filter":{
+    "bool":{
+      "should":[
+          {"term":{"name":"kevin"}},
+          {"term":{"age":20}}
+        ],
+      "must_not":{
+        "term":{"age":24}
+      }
+    }
+  }
+}
 
+```
+嵌套bool
+```
+# 嵌套bool,name=kevin or (name=coco and age=21)
+GET /demo/user/_search
+{
+  "post_filter":{
+    "bool":{
+      "should":[
+        {"term":{"name":"kevin"}},
+        {
+          "bool":{
+            "must":[
+              {"term":{"name":"coco"}},
+              {"term":{"age":21}}
+              ]
+          }
+        }
+        ]
+    }
+  }
+}
+```
 
-
-
-
-
+#### 3.5.3 范围过滤
 
 范围过滤：
 
@@ -1343,6 +1380,570 @@ bool过滤
     lte：<=（小于等于）
     lt：<（小于）
     
+```
+# 范围过滤,取age>20 and age<23的数据
+GET /demo/user/_search
+{
+  "post_filter":{
+    "range":{
+      "age":{
+        "gt":20,
+        "lt":23
+      }
+    }
+  }
+}
+```
+
+#### 3.5.4 过滤非空
+
+```
+# 过滤非空,取name is not null 的数据
+GET /demo/user/_search
+{
+  "query":{
+    "bool":{
+      "filter":{
+        "exists":{
+          "field":"name"
+        }
+      }
+    }
+  }
+}
+```
+
+检索词频率TF(Term Frequency)对搜索结果排序的影响。  
+检索词频率：检索词在该字段出现的频率越高相关性也越高，字段中出现过多次要比一次相关性高。  
+
+constant_score：将query与filter包装，消除TF对搜索结果排序的影响。  
+```
+GET /demo/user/_search
+{
+  "query":{
+    "constant_score":{
+      "filter":{
+        "exists":{
+          "field":"name"
+        }
+      }
+    }
+  }
+}
+```
+
+#### 3.5.5 过滤器缓存
+
+ElasticSearch提供了一种特殊的缓存，即过滤器缓存(filter cache)，用来存储过滤器的结果，被缓存的过滤器并不需要过多的内存（因为它们只存储了哪些文档能与过滤器相匹配的相关信息），
+而且可以供后续所有与之相关的查询重复使用，从而极大的提高了查询的性能。
+
+ElasticSearch默认缓存的过滤器：  
+    exists,missing,range,term,terms。
+
+ElasticSearch默认不缓存的过滤器：  
+    numeric_range，script，geo_bbox，geo_distance，geo_distance_range
+    geo_polygon，geo_shape，and，or，not
+
+开启方式：在filter查询语句后加上"_catch":true
+
+### 3.6 聚合查询
+
+sum：求总数值，等同sum()
+```
+# 聚合name=kevin的age,等同：name=kevin,sum(age)
+GET /demo/user/_search
+{
+  "size":0,
+  "aggs":{
+    "age_of_sum":{
+      "sum":{
+        "field":"age"
+      }
+    }
+  },
+  "query":{
+    "term":{
+      "name":"kevin"
+    }
+  }
+}
+# "size":0，不展示原始数据，数值设为多少展示几条，不设置默认全部展示
+```
+min：求最小值，等同min()
+```
+#聚合查询，获取最小的年龄，等同min(age)
+GET /demo/user/_search
+{
+  "size":0,
+  "aggs":{
+    "age_of_min":{
+      "min":{
+        "field":"age"
+      }
+    }
+  }
+}
+```
+max：求最大值，等同max()
+```
+#聚合查询，获取最大的年龄，等同max(age)
+GET /demo/user/_search
+{
+  "size":0,
+  "aggs":{
+    "age_of_max":{
+      "max":{
+        "field":"age"
+      }
+    }
+  }
+}
+```
+avg：求平均值，等同avg()
+```
+#聚合查询，获取平均的年龄值，等同avg(age)
+GET /demo/user/_search
+{
+  "size":0,
+  "aggs":{
+    "age_of_avg":{
+      "avg":{
+        "field":"age"
+      }
+    }
+  }
+}
+```
+cardinality：求基数，等同count()
+```
+# 求基数，求age有多少个数据，等同count(age)
+GET /demo/user/_search
+{
+  "size":0,
+  "aggs":{
+    "age_of_cardinality":{
+      "cardinality":{
+        "field":"age"
+      }
+    }
+  }
+}
+```
+terms：分组，等同group by 
+```
+# 分组，根据age进行分组，等同group by age
+GET /demo/user/_search
+{
+  "size":0,
+  "aggs":{
+    "age_group_by":{
+     "terms":{
+       "field":"age"
+     } 
+    }
+  }
+}
+```
+嵌套聚合查询案例
+```
+# 嵌套聚合，获取name=kevin，根据age做分组，再根据已平均的年龄做排序，等同：name=kevin,group by age,order by avg(age)
+GET /demo/user/_search
+{
+  "query":{
+    "match":{
+      "name":"kevin"
+    }
+  },
+  "size":0,
+  "aggs":{
+    "age_group_by":{
+      "terms":{
+        "field":"age",
+        "order":{
+          "avg_of_age":"desc"
+        }
+      },
+      "aggs":{
+        "avg_of_age":{
+          "avg":{
+            "field":"age"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### 3.7 复合查询
+
+将多个基本查询组合成单一查询的查询
+
+#### 3.7.1 使用bool查询
+
+参数：
+
+    must：文档必须匹配这些条件才能被包含进来。
+    must_not：文档必须不匹配这些条件才能被包含进来。
+    should：如果满足这些语句的任意语句，将增加_score，否则无任何影响，主要用于修正每个文档的相关性得分。
+    filter：必须匹配，但它以不评分、过滤模式来进行，这些语句对评分没有贡献，只是根据过滤标准来排除或包含文档。
+
+相关性得分是如何组合的，每一个子查询都独自地计算文档的相关性得分，一旦得分被计算出来，bool查询就将这些得分进行合并并返回一个代表整个布尔操作的得分。
+
+案例：
+```
+# 标识查找remark包含我是kevin的词，并且age<>21，
+# should，sex=男或create_time>=2020-05-03的可以被匹配也可以不被匹配，如果匹配排名更高
+GET /demo/user/_search
+{
+  "query":{
+    "bool":{
+      "must":{"match":{"remark":"我 是 kevin"}},
+      "must_not":{"match":{"age":21}},
+      "should":[
+        {"match":{"sex":"男"}},
+        {"range":{"create_time":{"gte":"2020-05-03"}}}
+      ]
+    }    
+  }
+}
+```
+改写案例：不让创建时间影响得分
+```
+# 标识查找remark包含我是kevin的词，并且age<>21，
+# should，sex=男可以被匹配也可以不被匹配，如果匹配排名更高
+# 避免create_time影响得分，将其过滤
+GET /demo/user/_search
+{
+  "query":{
+    "bool":{
+      "must":{"match":{"remark":"我 是 kevin"}},
+      "must_not":{"match":{"age":21}},
+      "should":[
+        {"match":{"sex":"男"}}
+      ],
+      "filter":{
+        "range":{"create_time":{"gte":"2020-05-03"}}
+      }
+    }    
+  }
+}
+```
+通过将range查询移到filter，转成不评分的查询，将不再影响文档相关排名。
+由于上一个案例是不评分的查询，可以使用各种对filter查询有效的优化来提升性能。
+
+bool查询本身也可以被用做不评分的查询，简单地将它放置到filter语句中并在内部构建布尔逻辑。
+```
+# 标识查找remark包含我是kevin的词，并且age<>21，
+# should，sex=男可以被匹配也可以不被匹配，如果匹配排名更高
+# 过滤为false的，create_time>=2020-05-03，且age<=25，并name<>'coco'
+GET /demo/user/_search
+{
+  "query":{
+    "bool":{
+      "must":{"match":{"remark":"我 是 kevin"}},
+      "must_not":{"match":{"age":21}},
+      "should":[
+        {"match":{"sex":"男"}}
+      ],
+      "filter":{
+        "bool":{
+          "must":[
+            {"range":{"create_time":{"gte":"2020-05-03"}}},
+            {"range":{"age":{"lte":25}}}
+          ],
+          "must_not":[
+            {"term":{"name":"coco"}}  
+          ]
+        }
+      }
+    }    
+  }
+}
+```
+
+#### 3.7.2 constant_score查询
+
+constant_score：将一个不变的常量评分应用于所有匹配的文档。
+
+使用场景：常用于只需要执行一个filter而没有其它查询（例如评分查询）的情况。
+
+term查询被放置在constant_score中，转成不评分的filter，这种方式可以用来取代只有filter语句的bool查询。
+```
+GET /demo/user/_search
+{
+  "constant_score":{
+    "filter":{
+      "term":{
+        "name":"coco"
+      }
+    }
+  }
+}
+```
+
+
+## 4.ElasticSearch原理
+
+### 4.1 elasticsearch分布式架构
+
+#### 4.1.1 分布式架构的透明隐藏特性
+
+ElasticSearch是一个分布式系统隐藏了复杂的处理机制
+
+分片机制：
+
+分片副本：
+    集群发现机制（cluster discovery）：当启动多个es进程时，非首个启动的进程将作为一个node自动发现并加入集群。
+    shard负载均衡：es会均衡分配shard，以保持每个节点均衡的负载均衡。
+
+#### 4.1.2 扩容机制
+垂直扩容：购置新的机器，替换已有的机器。
+水平扩容：直接增加机器。
+
+#### 4.1.3 rebalance
+
+增加或减少节点时会自动均衡
+
+#### 4.1.4 master与slave节点
+
+master节点：主要职责统计node节点状态信息，集群状态信息，索引创建和删除，索引分配的管理，关闭node接地那，并决定哪些分片分配给相关的节点。
+
+salve节点：同步数据，等待机会成为Master（master宕机/重启）。
+ 
+#### 4.1.5 节点对等
+
+每个节点都能接收请求
+每个节点接收到请求后都能把该请求路由到有相关数据的其它节点
+接收原始请求的节点负责采集数据并返回给客户端
+
+### 4.2 分片与副本机制
+
+分片（shard）：ES是分布式搜索引擎，索引通常会分成不同的部分，这些分布在不同节点的数据就是分片。
+ES自动管理与分片，并会在必要时对分片数据重新平衡分片，所以基本不需担心分片的处理细节，一个分片默认最大文档数量是20亿。
+
+副本（replica）：ES默认为一个索引分配5个主分片，并分别为其创建一个副本分片，每个索引5个主分片与5个副本分片。
+
+分片以及副本分分配是高可用以及快速搜索响应的核心设计，主分片与副本分片都能处理查询请求，区别是只有主分片能处理索引请求。
+
+> 注：  
+    1.每分配一个分片，都有额外成本。  
+    2.每个分片本质上都是一个Lucene索引，因此会消耗相应文件句柄、内存、CPU资源。  
+    3.每个搜索请求会调度索引的每个分片。  
+    4.ES使用词频统计来计算相关性，这些统计会分配到各个分片上，若大量分片只维护较少数据，会导致文档相关性较差。
+
+分片建议：假如有3个节点，建议创建分片数量最多不超过(3*3)个。
+
+分片案例：
+```
+PUT /demo1
+{
+  "settings":{
+    "index":{
+      "number_of_shards":3,
+      "number_of_replicas":1
+    }
+  }
+}
+```
+
+index包含多个shard  
+每个shard都是一个最小的工作单元，承载部分数据。  
+每个shard都是一个lucene实例，有完整的建立索引和请求能力。  
+增减节点时，shard会自动在nodes中负载均衡。  
+primary shard和replica shard，每个document肯定只存在某一个primary shard以及其对应的replica shard中，不可能存在于多个primary shard。  
+replica shard是primary shard的副本，负责容错，以及承担读请求负载。  
+primary shard的数量在创建索引的时候就固定了，replica shard的数量可以随时修改。  
+primary shard的默认数量是5，replica默认是1，默认有10个shard，5个primary shard，5个replica shard。  
+
+### 4.3 单节点环境下创建索引分析
+
+分片案例：
+```
+PUT /demo1
+{
+  "settings":{
+    "index":{
+      "number_of_shards":3,
+      "number_of_replicas":1
+    }
+  }
+}
+```
+
+单节点下会将3个primary shard分配到仅有的一个node上，另外3个replica shard是无法进行分配的（一个shard的replica是不能在同一个节点），
+集群可以正常工作，但节点宕机后数据会全部丢失，而且集群不可用无法接受任何请求。
+
+### 4.4 多节点环境下创建索引分析
+
+例如：当前环境为2个节点
+
+将3个primary shard分配到一个node上，另外3个replica shard分配到另外一个节点。
+primary shard与replica shard保持同步，并且都可以处理客户端请求。
+
+### 4.5 水平扩容的过程
+
+1.扩容后primary shard和replica shard会自动负载均衡。  
+2.扩容后每个节点上的shard会减少，分配给每个shard的CPU，内存，IO资源会更多，性能提高。  
+3.扩容的极限，如果有6个shard，扩容的极限就是6个节点，每个节点上一个shard，如果想超出扩容的极限，可以增加replica shard的个数。   
+
+案例：当有6个shard，3个节点时，最多能承受几个节点所在服务器宕机。（容错性）。
+如果6个shard：3个primary shard和3个replica shard，则每个服务器宕机都会造成部分数据丢失。
+解决方案：
+
+    为了提高容错性可以增加shard个数。
+    比如9个shard：3个primary shard和6个replica shard，每个服务器都会有1个primary shard与另外2个不同的replica shard。这时，最高能容忍2台服务器宕机。
+
+> 扩容是为了提高系统的吞吐量，同时也需要考虑容错性，让尽可能多的服务器宕机也能保证数据不丢失。
+
+### 3.6 ElasticSearch的容错机制
+
+以9个shard，3个节点为案例：
+
+如果master node宕机，此时并非所有的primary shard 都是Active status，此时集群状态是shard。
+
+容错处理：
+
+    1.选举一个node作为master。
+    2.新选举的master会将挂掉的primary shard某个replica shard提升为primary shard，此时集群状态为yellow，
+      因为缺少一个replica shard，并不是所有的replica shard都是active status。
+    3.重启宕机的服务器，新master会将所有的副本都复制一份到该节点上（同步宕机后的修改），此时集群的状态green，
+      因为所有的primary shard和replica shard都是active status。
+
+### 3.7 文档的核心元数据(_index,_type,_id,_source)
+
+1._index：表示文档存储的索引，同个索引下存放的是相似的文档（文档的field多数为相同）。  
+命名：索引名必须小写，不能以下划线开头，不能有逗号。
+
+案例：
+```
+# 创建名字为test的index
+PUT /test
+```
+
+2._type：表示文档索引中的类型，一个索引只能有一个type。
+命名：类型名可以大小写，不能以下划线开头，不能包括逗号。
+
+案例：
+```
+# 在test索引创建名字为user的type
+PUT /test/user/1
+{
+  "name":"mrcao"
+}
+```
+
+3._id：表示文档的唯一标识，与索引、类型组合在一起作为唯一标识一个文档。
+
+生成方式：可以手动指定值，也可以由ES自动生成。 
+
+    1.手动指定值：通常将其它系统的已有数据导入es时。
+    2.由ES生成id值：ES生成的id长度为20个字符，使用的是base64编码，URL安全，使用的是GUID算法，分布式下并发生成id值时不会冲突。
+
+案例：
+```
+# 在test索引的user内创建id为1的数据
+PUT /test/user/1
+{
+  "name":"mrcao"
+}
+
+# 在test索引的user内创建id由es自动生成的数据
+POST /test/user
+{
+  "name":"kevin"
+}
+```
+
+4._source：为添加文档时request的body中的内容
+
+案例：
+```
+# 查询id=1的name字段
+GET /demo/user/1?_source=name
+```
+        
+### 3.8 改变文档内容原理解析
+
+修改文档内容的两种方式
+
+1.全部替换(PUT)：相当于添加一个新文档，将原有的文档覆盖。例如：需要修改age，但其余字段也需要指定，然后将文档标记为deleted。
+
+```
+# 更新id为2的name为kevin，version+1
+PUT /demo/user/2
+{
+  "name":"kevin",
+  "age":23,
+  "sex":"男",
+  "remark":"我是kevin",
+  "create_time":"2020-05-03"
+}
+```
+> 注：使用全部替换时，需要指定全部字段，如果不指定全部字段，更新后，字段会缺失。
+
+2.修改方式(POST)：使用_update只需要指定修改的字段，ES检索出文档后更新到文档，并将之前的文档标记为deleted。
+```
+# 更新id为2的name为mrcao，version+1
+POST /demo/user/2/_update
+{
+  "doc":{
+    "name":"mrcao"
+  }
+}
+```
+
+区别：
+POST方式比PUT方式网络传输次数少，因此提高了性能。
+POST方式从查询文档到删除文档，再创建新的文档都是在ES内部实现，降低POST方式并发冲突可能性。
+
+删除文档：标记为deleted，随着数据量增加，ES会在合适的时间删除掉。
+```
+# 删除id=2的数据，实际是将状态标记为deleted
+DELETE /demo/user/2
+```
+
+### 3.9 基于groovy脚本执行partial update
+
+es有内置的脚本支持，可以基于groovy脚本实现复杂的操作
+
+es第一次加载一个新脚本时，会将新脚本编译并存储在缓存中，编译可能是一个繁重的过程，如果需要将变量传递给脚本，建议：将它们作为命名参数传递给脚本本身，二不是硬编码在脚本中。
+
+
+
+#### 3.9.1 修改数据
+
+```
+# 让age在原有的数据在加1
+POST /demo/user/3/_update
+{
+  "script": "ctx._source.age+=1"
+}
+
+# 在name字段上过追加字符串cao
+POST /demo/user/3/_update
+{
+  "script": "ctx._source.name+='cao'"
+}
+```
+
+#### 3.9.2 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
